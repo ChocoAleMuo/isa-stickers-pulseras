@@ -497,7 +497,7 @@ const WHATSAPP_NUMBER = "5491138205455";
 // Cuando tengas la planilla de Google Sheets publicada como CSV,
 // pegá acá el link (Archivo > Compartir > Publicar en la Web > CSV)
 // y la página va a cargar los productos automáticamente desde ahí.
-const SHEET_CSV_URL = ""; // ej: "https://docs.google.com/spreadsheets/d/e/XXXX/pub?output=csv"
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkVTQFbAYUmTnLcuiJWwf_C0lnk3zQ8-VahzPuVoBi02vmrw0njxeM1tyHFRMq7ZUqwSetloNJLZed/pub?output=csv";
 
 /* =========================================================
    ESTRUCTURA DE CATEGORÍAS
@@ -555,12 +555,35 @@ let USING_SAMPLE_DATA = true;
    CARGA DESDE GOOGLE SHEETS (opcional)
    Columnas esperadas: section,cat,subcat,name,tier,img
    ========================================================= */
+// Parser CSV simple pero robusto: soporta campos entre comillas,
+// comas dentro de comillas, y comillas escapadas ("").
+function parseCSV(text){
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i], next = text[i+1];
+    if(inQuotes){
+      if(c === '"' && next === '"'){ field += '"'; i++; }
+      else if(c === '"'){ inQuotes = false; }
+      else { field += c; }
+    } else {
+      if(c === '"'){ inQuotes = true; }
+      else if(c === ','){ row.push(field); field = ""; }
+      else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ""; }
+      else if(c === '\r'){ /* ignorar */ }
+      else { field += c; }
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.length > 1 || r[0] !== "");
+}
+
 async function loadFromSheet(){
   if(!SHEET_CSV_URL) return;
   try{
     const res = await fetch(SHEET_CSV_URL);
     const text = await res.text();
-    const rows = text.trim().split("\n").map(r=>r.split(","));
+    const rows = parseCSV(text.trim());
     const headers = rows[0].map(h=>h.trim().toLowerCase());
     const items = rows.slice(1).filter(r=>r.length>1 && r[0]).map((r,i)=>{
       const obj = {id:"row"+i};
