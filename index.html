@@ -232,8 +232,19 @@
     font-size:0.72rem;
     text-align:center;
     position:relative;
+    cursor:zoom-in;
   }
   .card .thumb img{width:100%;height:100%;object-fit:cover;}
+  .zoom-btn{
+    position:absolute; top:8px; right:8px;
+    width:28px;height:28px;border-radius:50%;
+    background:rgba(20,27,45,0.7);
+    border:1px solid var(--line);
+    color:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    font-size:0.85rem;
+    cursor:zoom-in;
+  }
   .card .body{padding:12px 12px 14px;display:flex;flex-direction:column;gap:6px;flex:1;}
   .card .name{font-size:0.92rem;color:var(--ink);font-weight:600;line-height:1.25;}
   .card .price{color:var(--gold);font-size:0.85rem;font-weight:700;}
@@ -374,6 +385,43 @@
     border:none;cursor:pointer;
   }
 
+  /* lightbox de producto */
+  .lightbox{
+    position:fixed;inset:0;z-index:80;
+    background:rgba(10,13,22,0.86);
+    display:none;align-items:center;justify-content:center;
+    padding:24px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox-card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    max-width:420px;width:100%;
+    overflow:hidden;
+    position:relative;
+  }
+  .lightbox-card .lb-img{
+    aspect-ratio:1/1;
+    background:linear-gradient(135deg,#212c47,#161e33);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--ink-faint);
+  }
+  .lightbox-card .lb-img img{width:100%;height:100%;object-fit:cover;}
+  .lightbox-card .lb-body{padding:18px 20px 22px;}
+  .lightbox-card .lb-body h3{margin:0 0 6px;font-size:1.4rem;}
+  .lightbox-card .lb-body .lb-price{color:var(--gold);font-weight:700;margin-bottom:8px;}
+  .lightbox-card .lb-body p{margin:0;color:var(--ink-faint);font-size:0.88rem;}
+  .lightbox-close{
+    position:absolute;top:10px;right:10px;
+    width:30px;height:30px;border-radius:50%;
+    background:rgba(20,27,45,0.7);
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-size:0.95rem;
+    cursor:pointer;
+  }
+
   @media (max-width:640px){
     .hero{padding:48px 0 30px;}
     .section-toggle button{padding:10px 22px;font-size:1.1rem;}
@@ -472,6 +520,18 @@
 
 <footer>Isa · Stickers &amp; Pulseras ♥</footer>
 
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightboxClose">✕</button>
+    <div class="lb-img" id="lbImg"></div>
+    <div class="lb-body">
+      <h3 id="lbName"></h3>
+      <div class="lb-price" id="lbPrice"></div>
+      <p id="lbDesc"></p>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="overlay"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-head">
@@ -497,6 +557,8 @@ const WHATSAPP_NUMBER = "5491138205455";
 // Cuando tengas la planilla de Google Sheets publicada como CSV,
 // pegá acá el link (Archivo > Compartir > Publicar en la Web > CSV)
 // y la página va a cargar los productos automáticamente desde ahí.
+// Columnas: section, cat, subcat, name, tier, img, desc (desc es opcional,
+// se muestra al tocar la lupa de la foto).
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQkVTQFbAYUmTnLcuiJWwf_C0lnk3zQ8-VahzPuVoBi02vmrw0njxeM1tyHFRMq7ZUqwSetloNJLZed/pub?output=csv";
 
 /* =========================================================
@@ -738,6 +800,7 @@ function renderCard(p){
   card.innerHTML = `
     <div class="thumb" data-id="${p.id}">
       ${p.img ? `<img src="${p.img}" alt="${p.name}">` : "Sin foto todavía"}
+      <button class="zoom-btn" aria-label="Ver más grande">🔍</button>
     </div>
     <div class="body">
       <div class="name">${p.name}</div>
@@ -753,8 +816,25 @@ function renderCard(p){
   `;
   card.querySelector(".plus").onclick = ()=> addToCart(p.id, 1);
   card.querySelector(".minus").onclick = ()=> addToCart(p.id, -1);
+  card.querySelector(".thumb").onclick = (e)=>{
+    if(e.target.closest(".zoom-btn") || e.target.tagName === "IMG" || e.target.classList.contains("thumb")){
+      openLightbox(p, price);
+    }
+  };
   return card;
 }
+
+function openLightbox(p, price){
+  document.getElementById("lbImg").innerHTML = p.img ? `<img src="${p.img}" alt="${p.name}">` : "Sin foto todavía";
+  document.getElementById("lbName").textContent = p.name;
+  document.getElementById("lbPrice").textContent = fmt(price);
+  document.getElementById("lbDesc").textContent = p.desc || "";
+  document.getElementById("lightbox").classList.add("open");
+}
+document.getElementById("lightboxClose").onclick = ()=> document.getElementById("lightbox").classList.remove("open");
+document.getElementById("lightbox").onclick = (e)=>{
+  if(e.target.id === "lightbox") document.getElementById("lightbox").classList.remove("open");
+};
 
 function renderQtyBadges(){
   document.querySelectorAll(".card").forEach(card=>{
